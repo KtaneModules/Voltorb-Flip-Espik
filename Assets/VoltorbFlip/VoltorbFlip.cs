@@ -2,6 +2,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.RegularExpressions;
 using UnityEngine;
 using KModkit;
 
@@ -34,7 +35,7 @@ public class VoltorbFlip : MonoBehaviour {
 
     private bool addingCoins = false;
 
-    private readonly string[] gridPostions = { "A1", "B1", "C1", "D1", "E1", "A2", "B2", "C2", "D2", "E2", "A3", "B3", "C3", "D3", "E3",
+    private readonly string[] gridPositions = { "A1", "B1", "C1", "D1", "E1", "A2", "B2", "C2", "D2", "E2", "A3", "B3", "C3", "D3", "E3",
         "A4", "B4", "C4", "D4", "E4", "A5", "B5", "C5", "D5", "E5" };
 
     // Logging info
@@ -236,7 +237,7 @@ public class VoltorbFlip : MonoBehaviour {
                 GridTiles[i].material = Numbers[grid[i]];
 
                 if (grid[i] == 0) {
-                    Debug.LogFormat("[Voltorb Flip #{0}] Revealed a Voltorb at {1}! You lost all your coins!", moduleId, gridPostions[i]);
+                    Debug.LogFormat("[Voltorb Flip #{0}] Revealed a Voltorb at {1}! You lost all your coins!", moduleId, gridPositions[i]);
                     coins = 0;
                     Audio.PlaySoundAtTransform("VF_Voltorb", transform);
                     GetComponent<KMBombModule>().HandleStrike();
@@ -254,17 +255,17 @@ public class VoltorbFlip : MonoBehaviour {
                         }
 
                         if (coins == 1)
-                            Debug.LogFormat("[Voltorb Flip #{0}] Revealed a {2} at {1}! You now have 1 coin!", moduleId, gridPostions[i], grid[i]);
+                            Debug.LogFormat("[Voltorb Flip #{0}] Revealed a {2} at {1}! You now have 1 coin!", moduleId, gridPositions[i], grid[i]);
 
                         else
-                            Debug.LogFormat("[Voltorb Flip #{0}] Revealed a {2} at {1}! You now have {3} coins!", moduleId, gridPostions[i], grid[i], coins);
+                            Debug.LogFormat("[Voltorb Flip #{0}] Revealed a {2} at {1}! You now have {3} coins!", moduleId, gridPositions[i], grid[i], coins);
                     }
 
                     else {
                         coins = coins * grid[i];
 
                         if (grid[i] != 1) {
-                            Debug.LogFormat("[Voltorb Flip #{0}] Revealed a {2} at {1}! You now have {3} coins!", moduleId, gridPostions[i], grid[i], coins);
+                            Debug.LogFormat("[Voltorb Flip #{0}] Revealed a {2} at {1}! You now have {3} coins!", moduleId, gridPositions[i], grid[i], coins);
 
                             switch (grid[i]) {
                                 case 2: Audio.PlaySoundAtTransform("VF_Coin2", transform); break;
@@ -384,5 +385,43 @@ public class VoltorbFlip : MonoBehaviour {
             return "0" + num;
 
         else return num.ToString();
+    }
+
+#pragma warning disable 414
+    private readonly string TwitchHelpMessage = @"Use !{0} flip A1 B2 C4 to flip those tiles. Use !{0} mark A1 B2 C4 to mark those tiles as having a Voltorb.";
+#pragma warning restore 414
+    private IEnumerator ProcessTwitchCommand(string Command)
+    {
+        Command = Command.Trim().ToUpperInvariant();
+        List<string> parameters = Command.Split(new char[] { ' ' }, StringSplitOptions.RemoveEmptyEntries).ToList();
+        if (Regex.IsMatch(Command, @"^(FLIP|MARK)\s*([A-E][1-5](\s*))+$", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase) == true)
+        {
+            yield return null;
+            bool toggling = (parameters.First() == "FLIP") ? marking : !marking;
+            if (toggling)
+            {
+                ToggleButton.OnInteract();
+                yield return new WaitForSeconds(0.15f);
+            }
+            parameters.Remove(parameters.First());
+            foreach (string button in parameters)
+            {
+                GridButtons[Array.IndexOf(gridPositions, button)].OnInteract();
+                yield return new WaitForSeconds(0.15f);
+            }
+        }
+    }
+
+    private IEnumerator TwitchHandleForcedSolve()
+    {
+        if (marking) { ToggleButton.OnInteract(); yield return new WaitForSeconds(0.15f); }
+        for (int i = 0; i < 25; i++)
+        {
+            if (grid[i] > 1 && !posPressed[i])
+            {
+                GridButtons[i].OnInteract();
+                yield return new WaitForSeconds(0.15f);
+            }
+        }
     }
 }
