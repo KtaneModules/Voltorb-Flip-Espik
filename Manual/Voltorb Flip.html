@@ -48,6 +48,19 @@
 					You can use this to mark tiles that might contain Voltorb. 
 					Marking a tile will <strong>NOT</strong> prevent it from being flipped once you leave Marking Mode.</p>
 					
+					<p><strong>But you can't do this alone.</strong></p>
+					<p>You can determine two tiles on the grid that contain Voltorb. 
+					Assume that all the tiles are numbered 1-25, starting with the top-left tile being 1 and the numbers proceed in reading order.</p>
+					
+					<p>Take all the numbers and letters from the serial number. 
+					Treat each letter as its position in the alphabet (A=1, Z=26). 
+					The sum of all the characters of the serial number modulo 25 corresponds to the first tile that contains a Voltorb 
+					(if you get 0, use 25 instead).</p>
+					
+					<p>Take the total number of letters throughout all the ports on the bomb. 
+					Use the full port name (e.g. DVI-D, Stereo RCA). Ignore modded ports.  
+					This number modulo 25 corresponds to the second tile that contains a Voltorb (if you get 0, use 25 instead). 
+					If this is the same tile that contains the first Voltorb, use the next tile in reading order instead.</p>
                     
                 </div>
                 <div class="page-footer relative-footer">Page 1 of 1</div>

@@ -35,8 +35,15 @@ public class VoltorbFlip : MonoBehaviour {
 
     private bool addingCoins = false;
 
+    private bool randomMode = true; // Change this to false once the algorithm is finished.
+
     private readonly string[] gridPositions = { "A1", "B1", "C1", "D1", "E1", "A2", "B2", "C2", "D2", "E2", "A3", "B3", "C3", "D3", "E3",
         "A4", "B4", "C4", "D4", "E4", "A5", "B5", "C5", "D5", "E5" };
+
+
+    private readonly char[] letterValues = { 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z', '-', '-', '-', '-', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9' };
+    private readonly int[] portLetterCount = { 4, 8, 2, 2, 6, 9 };
+
 
     // Logging info
     private static int moduleIdCounter = 1;
@@ -70,103 +77,118 @@ public class VoltorbFlip : MonoBehaviour {
 
     // Creates the grid
     private void CreateGrid() {
-        int[] availablePostions = new int[25];
-        int remainingPositions = 25;
+        // New solvable method
+        if (!randomMode) {
+            // Places preemptive Voltorb
+            int[] positions = EdgeworkPositions();
+            grid[positions[0]] = 0;
+            grid[positions[1]] = 0;
 
-        for (int i = 0; i < availablePostions.Length; i++)
-            availablePostions[i] = i;
-
-        // Counts of each tile (2, 3, Voltorb)
-        int[] n = new int[3];
-
-        int rand = UnityEngine.Random.Range(0, 40);
-
-        // Gets the configuation
-        switch (rand) {
-        case 1: n[0] = 0; n[1] = 3; n[2] = 6; break;
-        case 2: n[0] = 5; n[1] = 0; n[2] = 6; break;
-        case 3: n[0] = 2; n[1] = 2; n[2] = 6; break;
-        case 4: n[0] = 4; n[1] = 1; n[2] = 6; break;
-        case 5: n[0] = 1; n[1] = 3; n[2] = 7; break;
-        case 6: n[0] = 6; n[1] = 0; n[2] = 7; break;
-        case 7: n[0] = 3; n[1] = 2; n[2] = 7; break;
-        case 8: n[0] = 0; n[1] = 4; n[2] = 7; break;
-        case 9: n[0] = 5; n[1] = 1; n[2] = 7; break;
-        case 10: n[0] = 2; n[1] = 3; n[2] = 8; break;
-        case 11: n[0] = 7; n[1] = 0; n[2] = 8; break;
-        case 12: n[0] = 4; n[1] = 2; n[2] = 8; break;
-        case 13: n[0] = 1; n[1] = 4; n[2] = 8; break;
-        case 14: n[0] = 6; n[1] = 1; n[2] = 8; break;
-        case 15: n[0] = 3; n[1] = 3; n[2] = 8; break;
-        case 16: n[0] = 0; n[1] = 5; n[2] = 8; break;
-        case 17: n[0] = 8; n[1] = 0; n[2] = 10; break;
-        case 18: n[0] = 5; n[1] = 2; n[2] = 10; break;
-        case 19: n[0] = 2; n[1] = 4; n[2] = 10; break;
-        case 20: n[0] = 7; n[1] = 1; n[2] = 10; break;
-        case 21: n[0] = 4; n[1] = 3; n[2] = 10; break;
-        case 22: n[0] = 1; n[1] = 5; n[2] = 10; break;
-        case 23: n[0] = 9; n[1] = 0; n[2] = 10; break;
-        case 24: n[0] = 6; n[1] = 2; n[2] = 10; break;
-        case 25: n[0] = 3; n[1] = 4; n[2] = 10; break;
-        case 26: n[0] = 0; n[1] = 6; n[2] = 10; break;
-        case 27: n[0] = 8; n[1] = 1; n[2] = 10; break;
-        case 28: n[0] = 5; n[1] = 3; n[2] = 10; break;
-        case 29: n[0] = 2; n[1] = 5; n[2] = 10; break;
-        case 30: n[0] = 7; n[1] = 2; n[2] = 10; break;
-        case 31: n[0] = 4; n[1] = 4; n[2] = 10; break;
-        case 32: n[0] = 1; n[1] = 6; n[2] = 13; break;
-        case 33: n[0] = 9; n[1] = 1; n[2] = 13; break;
-        case 34: n[0] = 6; n[1] = 3; n[2] = 10; break;
-        case 35: n[0] = 0; n[1] = 7; n[2] = 10; break;
-        case 36: n[0] = 8; n[1] = 2; n[2] = 10; break;
-        case 37: n[0] = 5; n[1] = 4; n[2] = 10; break;
-        case 38: n[0] = 2; n[1] = 6; n[2] = 10; break;
-        case 39: n[0] = 7; n[1] = 3; n[2] = 10; break;
-        default: n[0] = 3; n[1] = 1; n[2] = 6; break;
+            // New algorithm goes here. Remember to switch randomMode to false.
         }
 
-        // Places the tiles on the grid
-        for (int i = 0; i < n[0]; i++) { // 2s
-            rand = UnityEngine.Random.Range(0, remainingPositions);
+        // Old random method
+        else {
+            int[] availablePostions = new int[25];
+            int remainingPositions = 25;
 
-            grid[availablePostions[rand]] = 2;
-            tilesLeft++;
+            for (int i = 0; i < availablePostions.Length; i++)
+                availablePostions[i] = i;
 
-            for (int j = rand; j < remainingPositions - 1; j++)
-                availablePostions[j] = availablePostions[j + 1];
+            // Counts of each tile (2, 3, Voltorb)
+            int[] n = new int[3];
 
-            remainingPositions--;
+            int rand = UnityEngine.Random.Range(0, 40);
+
+            // Gets the configuation
+            switch (rand) {
+            case 1: n[0] = 0; n[1] = 3; n[2] = 6; break;
+            case 2: n[0] = 5; n[1] = 0; n[2] = 6; break;
+            case 3: n[0] = 2; n[1] = 2; n[2] = 6; break;
+            case 4: n[0] = 4; n[1] = 1; n[2] = 6; break;
+            case 5: n[0] = 1; n[1] = 3; n[2] = 7; break;
+            case 6: n[0] = 6; n[1] = 0; n[2] = 7; break;
+            case 7: n[0] = 3; n[1] = 2; n[2] = 7; break;
+            case 8: n[0] = 0; n[1] = 4; n[2] = 7; break;
+            case 9: n[0] = 5; n[1] = 1; n[2] = 7; break;
+            case 10: n[0] = 2; n[1] = 3; n[2] = 8; break;
+            case 11: n[0] = 7; n[1] = 0; n[2] = 8; break;
+            case 12: n[0] = 4; n[1] = 2; n[2] = 8; break;
+            case 13: n[0] = 1; n[1] = 4; n[2] = 8; break;
+            case 14: n[0] = 6; n[1] = 1; n[2] = 8; break;
+            case 15: n[0] = 3; n[1] = 3; n[2] = 8; break;
+            case 16: n[0] = 0; n[1] = 5; n[2] = 8; break;
+            case 17: n[0] = 8; n[1] = 0; n[2] = 10; break;
+            case 18: n[0] = 5; n[1] = 2; n[2] = 10; break;
+            case 19: n[0] = 2; n[1] = 4; n[2] = 10; break;
+            case 20: n[0] = 7; n[1] = 1; n[2] = 10; break;
+            case 21: n[0] = 4; n[1] = 3; n[2] = 10; break;
+            case 22: n[0] = 1; n[1] = 5; n[2] = 10; break;
+            case 23: n[0] = 9; n[1] = 0; n[2] = 10; break;
+            case 24: n[0] = 6; n[1] = 2; n[2] = 10; break;
+            case 25: n[0] = 3; n[1] = 4; n[2] = 10; break;
+            case 26: n[0] = 0; n[1] = 6; n[2] = 10; break;
+            case 27: n[0] = 8; n[1] = 1; n[2] = 10; break;
+            case 28: n[0] = 5; n[1] = 3; n[2] = 10; break;
+            case 29: n[0] = 2; n[1] = 5; n[2] = 10; break;
+            case 30: n[0] = 7; n[1] = 2; n[2] = 10; break;
+            case 31: n[0] = 4; n[1] = 4; n[2] = 10; break;
+            case 32: n[0] = 1; n[1] = 6; n[2] = 13; break;
+            case 33: n[0] = 9; n[1] = 1; n[2] = 13; break;
+            case 34: n[0] = 6; n[1] = 3; n[2] = 10; break;
+            case 35: n[0] = 0; n[1] = 7; n[2] = 10; break;
+            case 36: n[0] = 8; n[1] = 2; n[2] = 10; break;
+            case 37: n[0] = 5; n[1] = 4; n[2] = 10; break;
+            case 38: n[0] = 2; n[1] = 6; n[2] = 10; break;
+            case 39: n[0] = 7; n[1] = 3; n[2] = 10; break;
+            default: n[0] = 3; n[1] = 1; n[2] = 6; break;
+            }
+
+            // Places the tiles on the grid
+            for (int i = 0; i < n[0]; i++) { // 2s
+                rand = UnityEngine.Random.Range(0, remainingPositions);
+
+                grid[availablePostions[rand]] = 2;
+                tilesLeft++;
+
+                for (int j = rand; j < remainingPositions - 1; j++)
+                    availablePostions[j] = availablePostions[j + 1];
+
+                remainingPositions--;
+            }
+
+            for (int i = 0; i < n[1]; i++) { // 3s
+                rand = UnityEngine.Random.Range(0, remainingPositions);
+
+                grid[availablePostions[rand]] = 3;
+                tilesLeft++;
+
+                for (int j = rand; j < remainingPositions - 1; j++)
+                    availablePostions[j] = availablePostions[j + 1];
+
+                remainingPositions--;
+            }
+
+            for (int i = 0; i < n[2]; i++) { // Voltorb
+                rand = UnityEngine.Random.Range(0, remainingPositions);
+
+                grid[availablePostions[rand]] = 0;
+
+                for (int j = rand; j < remainingPositions - 1; j++)
+                    availablePostions[j] = availablePostions[j + 1];
+
+                remainingPositions--;
+            }
+
+            // Fills the remaining spots on the grid with 1s
+            for (int i = 0; i < grid.Length; i++) {
+                if (grid[i] == -1)
+                    grid[i] = 1;
+            }
         }
+        
 
-        for (int i = 0; i < n[1]; i++) { // 3s
-            rand = UnityEngine.Random.Range(0, remainingPositions);
-
-            grid[availablePostions[rand]] = 3;
-            tilesLeft++;
-
-            for (int j = rand; j < remainingPositions - 1; j++)
-                availablePostions[j] = availablePostions[j + 1];
-
-            remainingPositions--;
-        }
-
-        for (int i = 0; i < n[2]; i++) { // Voltorb
-            rand = UnityEngine.Random.Range(0, remainingPositions);
-
-            grid[availablePostions[rand]] = 0;
-
-            for (int j = rand; j < remainingPositions - 1; j++)
-                availablePostions[j] = availablePostions[j + 1];
-
-            remainingPositions--;
-        }
-
-        // Fills the remaining spots on the grid with 1s
-        for (int i = 0; i < grid.Length; i++) {
-            if (grid[i] == -1)
-                grid[i] = 1;
-        }
-
+        // Logs the grid
         Debug.LogFormat("[Voltorb Flip #{0}] The grid on the module is as follows:", moduleId);
         Debug.LogFormat("[Voltorb Flip #{0}] {1} {2} {3} {4} {5}", moduleId, V(grid[0]), V(grid[1]), V(grid[2]), V(grid[3]), V(grid[4]));
         Debug.LogFormat("[Voltorb Flip #{0}] {1} {2} {3} {4} {5}", moduleId, V(grid[5]), V(grid[6]), V(grid[7]), V(grid[8]), V(grid[9]));
@@ -306,6 +328,72 @@ public class VoltorbFlip : MonoBehaviour {
         }
     }
 
+
+    // Gets Voltorb positions from edgework
+    private int[] EdgeworkPositions() {
+        int[] pos = new int[2];
+
+        // First position
+        string serialNumber = Bomb.GetSerialNumber();
+        pos[0] = 0;
+
+        for (int i = 0; i < serialNumber.Length; i++) {
+            for (int j = 0; j < letterValues.Length; j++) {
+                if (serialNumber[i] == letterValues[j]) {
+                    if (j > 25) // Numbers
+                        pos[0] += j - 30;
+
+                    else // Letters
+                        pos[0] += j + 1;
+
+                    break;
+                }
+            }
+        }
+
+        pos[0] %= 25;
+
+        if (pos[0] == 0)
+            pos[0] = 24;
+
+        else
+            pos[0]--;
+
+
+        // Second position
+        int[] portCounts = new int[6];
+        pos[1] = 0;
+
+        portCounts[0] = Bomb.GetPortCount(Port.DVI);
+        portCounts[1] = Bomb.GetPortCount(Port.Parallel);
+        portCounts[2] = Bomb.GetPortCount(Port.PS2);
+        portCounts[3] = Bomb.GetPortCount(Port.RJ45);
+        portCounts[4] = Bomb.GetPortCount(Port.Serial);
+        portCounts[5] = Bomb.GetPortCount(Port.StereoRCA);
+
+        for (int i = 0; i < portCounts.Length; i++) {
+            pos[1] += portCounts[i] * portLetterCount[i];
+        }
+
+        pos[1] %= 25;
+
+        if (pos[1] == 0)
+            pos[1] = 24;
+
+        else
+            pos[1]--;
+
+
+        // If the two positions are the same
+        if (pos[0] == pos[1]) {
+            pos[1]++;
+            pos[1] %= 25;
+        }
+
+        return pos;
+    }
+
+
     // Toggle button is pressed
     private void ToggleButtonPress() {
         ToggleButton.AddInteractionPunch();
@@ -386,6 +474,10 @@ public class VoltorbFlip : MonoBehaviour {
 
         else return num.ToString();
     }
+
+
+// TP support - thanks to Danny7007
+
 
 #pragma warning disable 414
     private readonly string TwitchHelpMessage = @"Use !{0} flip A1 B2 C4 to flip those tiles. Use !{0} mark A1 B2 C4 to mark those tiles as having a Voltorb.";
