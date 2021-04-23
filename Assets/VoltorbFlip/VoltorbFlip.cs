@@ -3,10 +3,12 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
-using UnityEngine;
-using KModkit;
 using System.Threading;
+using KModkit;
 using PuzzleSolvers;
+using RT.Util;
+using RT.Util.ExtensionMethods;
+using UnityEngine;
 
 public class VoltorbFlip : MonoBehaviour
 {
@@ -27,10 +29,6 @@ public class VoltorbFlip : MonoBehaviour
 
     // Solving info
     private int[] grid;
-    private int[] rowSums;
-    private int[] rowVol;
-    private int[] colSums;
-    private int[] colVol;
 
     private int coins = 0;
     private int displayedCoins = 0;
@@ -61,14 +59,6 @@ public class VoltorbFlip : MonoBehaviour
     private void Awake()
     {
         moduleId = moduleIdCounter++;
-
-        for (int i = 0; i < GridButtons.Length; i++)
-        {
-            int j = i;
-            GridButtons[i].OnInteract += delegate () { GridButtonPress(j); return false; };
-        }
-
-        ToggleButton.OnInteract += delegate () { ToggleButtonPress(); return false; };
     }
 
     // Gets information
@@ -95,16 +85,22 @@ public class VoltorbFlip : MonoBehaviour
             yield break;
         }
 
+        for (int i = 0; i < GridButtons.Length; i++)
+            GridButtons[i].OnInteract += GridButtonPress(i);
+
+        ToggleButton.OnInteract += delegate () { ToggleButtonPress(); return false; };
+
         for (var i = 0; i < 5; i++)
         {
-            CoinCounts[i].text = colSums[i].ToString("00");
-            VoltorbCounts[i].text = colVol[i].ToString();
-            CoinCounts[i + 5].text = rowSums[i].ToString("00");
-            VoltorbCounts[i + 5].text = rowVol[i].ToString();
+            CoinCounts[i].text = Enumerable.Range(0, 5).Select(row => grid[i + 5 * row]).Sum().ToString("00");
+            VoltorbCounts[i].text = Enumerable.Range(0, 5).Count(row => grid[i + 5 * row] == 0).ToString();
+            CoinCounts[i + 5].text = Enumerable.Range(0, 5).Select(col => grid[col + 5 * i]).Sum().ToString("00");
+            VoltorbCounts[i + 5].text = Enumerable.Range(0, 5).Count(col => grid[col + 5 * i] == 0).ToString();
         }
         TotalCoins.text = "0000";
 
         // Logs the grid
+        Debug.LogFormat("[Voltorb Flip #{0}] Edgework positions: {1} and {2}", moduleId, gridPositions[positions[0]], gridPositions[positions[1]]);
         Debug.LogFormat("[Voltorb Flip #{0}] The grid on the module is as follows:", moduleId);
         Debug.LogFormat("[Voltorb Flip #{0}] {1} {2} {3} {4} {5}", moduleId, V(grid[0]), V(grid[1]), V(grid[2]), V(grid[3]), V(grid[4]));
         Debug.LogFormat("[Voltorb Flip #{0}] {1} {2} {3} {4} {5}", moduleId, V(grid[5]), V(grid[6]), V(grid[7]), V(grid[8]), V(grid[9]));
@@ -121,9 +117,21 @@ public class VoltorbFlip : MonoBehaviour
             puzzle.AddConstraint(new CombinationsConstraint(Enumerable.Range(0, 5).Select(j => j + 5 * i), PuzzleUtil.Combinations(0, 3, 5, true).Where(c => c.Sum() == rowSums[i] && c.Count(v => v == 0) == rowVoltorbs[i])));
             puzzle.AddConstraint(new CombinationsConstraint(Enumerable.Range(0, 5).Select(j => i + 5 * j), PuzzleUtil.Combinations(0, 3, 5, true).Where(c => c.Sum() == colSums[i] && c.Count(v => v == 0) == colVoltorbs[i])));
         }
-        for (var i = 0; i < givenCells.Length; i++)
-            puzzle.AddConstraint(new GivenConstraint(givenCells[i], 0));
-        return puzzle.Solve().Take(2).Count() == 1;
+        for (var gcIx = 0; gcIx < givenCells.Length; gcIx++)
+            puzzle.AddConstraint(new GivenConstraint(givenCells[gcIx], 0));
+
+        bool[] voltorbs = null;
+
+        foreach (var solution in puzzle.Solve())
+        {
+            if (voltorbs == null)
+                voltorbs = solution.Select(v => v == 0).ToArray();
+            else
+                for (var i = 0; i < solution.Length; i++)
+                    if ((solution[i] == 0) != voltorbs[i])
+                        return false;
+        }
+        return true;
     }
 
     private static T shuffle<T>(T list, System.Random random) where T : IList
@@ -144,39 +152,90 @@ public class VoltorbFlip : MonoBehaviour
     }
 
     // This method runs in a separate thread — make sure not to interact with any Unity objects
-    private void RunAlgorithm(int[] givens, int seed)
+    private void RunAlgorithm(int[] originalGivens, int seed)
     {
+        var origRow1 = originalGivens[0] / 5;
+        var origRow2 = originalGivens[1] / 5;
+        var origCol1 = originalGivens[0] % 5;
+        var origCol2 = originalGivens[1] % 5;
+
+        var originalSameCol = origCol1 == origCol2;
+        var originalSameRow = origRow1 == origRow2;
+
         try
         {
-            while (true)
+            for (; ; seed = (seed + 1) % int.MaxValue)
             {
+                // Generate a random grid of 25 values (0 = voltorb)
                 var rnd = new System.Random(seed);
-                var board = new List<int>();
-                var numVoltorbs = rnd.Next(3, 7);
-                for (var i = numVoltorbs; i >= 0; i--)
-                    board.Add(0);
-                for (var i = rnd.Next(3, 7); i >= 0; i--)
-                    board.Add(2);
-                for (var i = rnd.Next(3, 7); i >= 0; i--)
-                    board.Add(3);
-                while (board.Count < 25 - givens.Length)
-                    board.Add(1);
-                shuffle(board, rnd);
-                for (var i = 0; i < givens.Length; i++)
-                    board.Insert(givens[i], 0);
+                grid = new int[25];
+                var ix = 0;
 
-                rowSums = Enumerable.Range(0, 5).Select(row => Enumerable.Range(0, 5).Select(col => board[col + 5 * row]).Sum()).ToArray();
-                rowVol = Enumerable.Range(0, 5).Select(row => Enumerable.Range(0, 5).Count(col => board[col + 5 * row] == 0)).ToArray();
-                colSums = Enumerable.Range(0, 5).Select(col => Enumerable.Range(0, 5).Select(row => board[col + 5 * row]).Sum()).ToArray();
-                colVol = Enumerable.Range(0, 5).Select(col => Enumerable.Range(0, 5).Count(row => board[col + 5 * row] == 0)).ToArray();
+                var numVoltorbs = rnd.Next(6, 14);
+                var num2s = rnd.Next(3, 11);
+                var num3s = rnd.Next(3, 11);
+                if (numVoltorbs + num2s + num3s >= 25)
+                    continue;
 
-                if (isUnique(rowSums, rowVol, colSums, colVol, givens))
+                for (var i = numVoltorbs; i > 0; i--)
+                    grid[ix++] = 0;
+                for (var i = num2s; i > 0; i--)
+                    grid[ix++] = 2;
+                for (var i = num3s; i > 0; i--)
+                    grid[ix++] = 3;
+                for (var i = ix; i < 25; i++)
+                    grid[i] = 1;
+                shuffle(grid, rnd);
+
+                var rowSums = Enumerable.Range(0, 5).Select(row => Enumerable.Range(0, 5).Select(col => grid[col + 5 * row]).Sum()).ToArray();
+                var rowVol = Enumerable.Range(0, 5).Select(row => Enumerable.Range(0, 5).Count(col => grid[col + 5 * row] == 0)).ToArray();
+                var colSums = Enumerable.Range(0, 5).Select(col => Enumerable.Range(0, 5).Select(row => grid[col + 5 * row]).Sum()).ToArray();
+                var colVol = Enumerable.Range(0, 5).Select(col => Enumerable.Range(0, 5).Count(row => grid[col + 5 * row] == 0)).ToArray();
+
+                // Make sure that the puzzle is unique if all of the voltorbs were given
+                var voltorbIxs = shuffle(grid.SelectIndexWhere(v => v == 0).ToArray(), rnd);
+                if (!isUnique(rowSums, rowVol, colSums, colVol, voltorbIxs))
+                    continue;
+
+                // Find a minimal set of givens such that the puzzle is still unique
+                var givens = Ut.ReduceRequiredSet(voltorbIxs, skipConsistencyTest: true,
+                    test: state => isUnique(rowSums, rowVol, colSums, colVol, state.SetToTest.ToArray())).ToArray();
+
+                // If there are exactly 2 required givens, we have found a potential candidate grid
+                if (givens.Length != 2)
+                    continue;
+
+                var col1 = givens[0] % 5;
+                var row1 = givens[0] / 5;
+                var col2 = givens[1] % 5;
+                var row2 = givens[1] / 5;
+
+                var sameCol = col1 == col2;
+                var sameRow = row1 == row2;
+
+                // If the original givens are in the same row or column, we need our givens to also be in the same row or column.
+                // Similarly, if the original givens are in different rows and columns, we also need our givens to be in different rows and columns.
+                if ((originalSameRow || originalSameCol) != (sameRow || sameCol))
+                    continue;
+
+                // If the original givens are in the same row but ours are in the same column, or vice-versa, transpose the grid
+                if ((sameCol && originalSameRow) || (sameRow && originalSameCol))
                 {
-                    grid = board.ToArray();
-                    threadReady = true;
-                    return;
+                    grid = Ut.NewArray(25, i => grid[(i / 5) + 5 * (i % 5)]);
+                    swap(ref row1, ref col1);
+                    swap(ref row2, ref col2);
                 }
-                seed = (seed + 1) % int.MaxValue;
+
+                // Swap the rows and columns of the first givens
+                grid = Ut.NewArray(25, i => grid[((i % 5 == origCol1) ? col1 : (i % 5 == col1) ? origCol1 : i % 5) + 5 * ((i / 5 == origRow1) ? row1 : (i / 5 == row1) ? origRow1 : i / 5)]);
+                row2 = (row2 == origRow1) ? row1 : (row2 == row1) ? origRow1 : row2;
+                col2 = (col2 == origCol1) ? col1 : (col2 == col1) ? origCol1 : col2;
+
+                // Swap the rows and columns of the second givens
+                grid = Ut.NewArray(25, i => grid[((i % 5 == origCol2) ? col2 : (i % 5 == col2) ? origCol2 : i % 5) + 5 * ((i / 5 == origRow2) ? row2 : (i / 5 == row2) ? origRow2 : i / 5)]);
+
+                threadReady = true;
+                return;
             }
         }
         catch (Exception e)
@@ -186,95 +245,106 @@ public class VoltorbFlip : MonoBehaviour
         }
     }
 
-    // Grid button is pressed
-    private void GridButtonPress(int i)
+    private void swap(ref int item1, ref int item2)
     {
-        GridButtons[i].AddInteractionPunch(0.5f);
-        Audio.PlayGameSoundAtTransform(KMSoundOverride.SoundEffect.BigButtonPress, gameObject.transform);
+        var t = item1;
+        item1 = item2;
+        item2 = t;
+    }
 
-        if (canPress && !posPressed[i])
+    // Grid button is pressed
+    private KMSelectable.OnInteractHandler GridButtonPress(int i)
+    {
+        return delegate
         {
-            if (!marking)
+            GridButtons[i].AddInteractionPunch(0.5f);
+            Audio.PlayGameSoundAtTransform(KMSoundOverride.SoundEffect.BigButtonPress, gameObject.transform);
+
+            if (canPress && !posPressed[i])
             {
-                posPressed[i] = true;
-                GridTiles[i].material = Numbers[grid[i]];
-
-                if (grid[i] == 0)
+                if (!marking)
                 {
-                    Debug.LogFormat("[Voltorb Flip #{0}] Revealed a Voltorb at {1}! You lost all your coins!", moduleId, gridPositions[i]);
-                    coins = 0;
-                    Audio.PlaySoundAtTransform("VF_Voltorb", transform);
-                    GetComponent<KMBombModule>().HandleStrike();
-                    StartCoroutine(IncrementCoins());
-                }
+                    posPressed[i] = true;
+                    GridTiles[i].material = Numbers[grid[i]];
 
-                else
-                {
-                    if (coins == 0)
+                    if (grid[i] == 0)
                     {
-                        coins = grid[i];
-
-                        switch (grid[i])
-                        {
-                            case 2: Audio.PlaySoundAtTransform("VF_Coin2", transform); break;
-                            case 3: Audio.PlaySoundAtTransform("VF_Coin3", transform); break;
-                            default: Audio.PlaySoundAtTransform("VF_Coin1", transform); break;
-                        }
-
-                        if (coins == 1)
-                            Debug.LogFormat("[Voltorb Flip #{0}] Revealed a {2} at {1}! You now have 1 coin!", moduleId, gridPositions[i], grid[i]);
-
-                        else
-                            Debug.LogFormat("[Voltorb Flip #{0}] Revealed a {2} at {1}! You now have {3} coins!", moduleId, gridPositions[i], grid[i], coins);
+                        Debug.LogFormat("[Voltorb Flip #{0}] Revealed a Voltorb at {1}! You lost all your coins!", moduleId, gridPositions[i]);
+                        coins = 0;
+                        Audio.PlaySoundAtTransform("VF_Voltorb", transform);
+                        GetComponent<KMBombModule>().HandleStrike();
+                        StartCoroutine(IncrementCoins());
                     }
 
                     else
                     {
-                        coins = coins * grid[i];
-
-                        if (grid[i] != 1)
+                        if (coins == 0)
                         {
-                            Debug.LogFormat("[Voltorb Flip #{0}] Revealed a {2} at {1}! You now have {3} coins!", moduleId, gridPositions[i], grid[i], coins);
+                            coins = grid[i];
 
                             switch (grid[i])
                             {
                                 case 2: Audio.PlaySoundAtTransform("VF_Coin2", transform); break;
                                 case 3: Audio.PlaySoundAtTransform("VF_Coin3", transform); break;
+                                default: Audio.PlaySoundAtTransform("VF_Coin1", transform); break;
+                            }
+
+                            if (coins == 1)
+                                Debug.LogFormat("[Voltorb Flip #{0}] Revealed a {2} at {1}! You now have 1 coin!", moduleId, gridPositions[i], grid[i]);
+
+                            else
+                                Debug.LogFormat("[Voltorb Flip #{0}] Revealed a {2} at {1}! You now have {3} coins!", moduleId, gridPositions[i], grid[i], coins);
+                        }
+
+                        else
+                        {
+                            coins = coins * grid[i];
+
+                            if (grid[i] != 1)
+                            {
+                                Debug.LogFormat("[Voltorb Flip #{0}] Revealed a {2} at {1}! You now have {3} coins!", moduleId, gridPositions[i], grid[i], coins);
+
+                                switch (grid[i])
+                                {
+                                    case 2: Audio.PlaySoundAtTransform("VF_Coin2", transform); break;
+                                    case 3: Audio.PlaySoundAtTransform("VF_Coin3", transform); break;
+                                }
                             }
                         }
+
+                        if (!addingCoins)
+                            StartCoroutine(IncrementCoins());
                     }
 
-                    if (!addingCoins)
-                        StartCoroutine(IncrementCoins());
+                    // All the 2s and 3s are revealed
+                    if (Enumerable.Range(0, 25).All(ix => grid[ix] < 2 || posPressed[ix]))
+                    {
+                        Debug.LogFormat("[Voltorb Flip #{0}] Module solved! You win {1} coins!", moduleId, coins);
+                        GetComponent<KMBombModule>().HandlePass();
+                        Audio.PlayGameSoundAtTransform(KMSoundOverride.SoundEffect.CorrectChime, gameObject.transform);
+                        canPress = false;
+                        StartCoroutine(RevealGrid());
+                    }
                 }
 
-                // All the 2s and 3s are revealed
-                if (Enumerable.Range(0, 25).All(ix => grid[ix] < 2 || posPressed[ix]))
-                {
-                    Debug.LogFormat("[Voltorb Flip #{0}] Module solved! You win {1} coins!", moduleId, coins);
-                    GetComponent<KMBombModule>().HandlePass();
-                    Audio.PlayGameSoundAtTransform(KMSoundOverride.SoundEffect.CorrectChime, gameObject.transform);
-                    canPress = false;
-                    StartCoroutine(RevealGrid());
-                }
-            }
-
-            // Marking a tile
-            else
-            {
-                if (!posMarked[i])
-                {
-                    posMarked[i] = true;
-                    GridTiles[i].material = Numbers[5];
-                }
-
+                // Marking a tile
                 else
                 {
-                    posMarked[i] = false;
-                    GridTiles[i].material = Numbers[4];
+                    if (!posMarked[i])
+                    {
+                        posMarked[i] = true;
+                        GridTiles[i].material = Numbers[5];
+                    }
+
+                    else
+                    {
+                        posMarked[i] = false;
+                        GridTiles[i].material = Numbers[4];
+                    }
                 }
             }
-        }
+            return false;
+        };
     }
 
 
