@@ -22,6 +22,7 @@ public class VoltorbFlip : MonoBehaviour
 
     public KMSelectable ToggleButton;
     public TextMesh ToggleText;
+    public TextMesh CoinsText;
 
     public TextMesh[] CoinCounts;
     public TextMesh[] VoltorbCounts;
@@ -32,6 +33,7 @@ public class VoltorbFlip : MonoBehaviour
 
     private int coins = 0;
     private int displayedCoins = 0;
+
     private bool threadReady;
     private string error;
 
@@ -39,8 +41,8 @@ public class VoltorbFlip : MonoBehaviour
     private bool[] posMarked = new bool[25];
     private bool canPress = true;
     private bool marking = false;
-
-    private bool addingCoins = false;
+    
+    private readonly int maximum = 99999;
 
     private readonly string[] gridPositions = { "A1", "B1", "C1", "D1", "E1", "A2", "B2", "C2", "D2", "E2", "A3", "B3", "C3", "D3", "E3",
         "A4", "B4", "C4", "D4", "E4", "A5", "B5", "C5", "D5", "E5" };
@@ -97,7 +99,9 @@ public class VoltorbFlip : MonoBehaviour
             CoinCounts[i + 5].text = Enumerable.Range(0, 5).Select(col => grid[col + 5 * i]).Sum().ToString("00");
             VoltorbCounts[i + 5].text = Enumerable.Range(0, 5).Count(col => grid[col + 5 * i] == 0).ToString();
         }
+
         TotalCoins.text = "0000";
+        CoinsText.text = "Coins:";
 
         // Logs the grid
         Debug.LogFormat("[Voltorb Flip #{0}] Edgework positions: {1} and {2}", moduleId, gridPositions[positions[0]], gridPositions[positions[1]]);
@@ -172,8 +176,10 @@ public class VoltorbFlip : MonoBehaviour
                 var ix = 0;
 
                 var numVoltorbs = rnd.Next(6, 14);
-                var num2s = rnd.Next(3, 11);
-                var num3s = rnd.Next(3, 11);
+                var num23s = rnd.Next(3, 11);
+                var num2s = rnd.Next(0, num23s + 1);
+                var num3s = num23s - num2s;
+
                 if (numVoltorbs + num2s + num3s >= 25)
                     continue;
 
@@ -273,7 +279,6 @@ public class VoltorbFlip : MonoBehaviour
                         coins = 0;
                         Audio.PlaySoundAtTransform("VF_Voltorb", transform);
                         GetComponent<KMBombModule>().HandleStrike();
-                        StartCoroutine(IncrementCoins());
                     }
 
                     else
@@ -311,9 +316,6 @@ public class VoltorbFlip : MonoBehaviour
                                 }
                             }
                         }
-
-                        if (!addingCoins)
-                            StartCoroutine(IncrementCoins());
                     }
 
                     // All the 2s and 3s are revealed
@@ -464,29 +466,41 @@ public class VoltorbFlip : MonoBehaviour
 
 
     // Displays the coins
-    private IEnumerator IncrementCoins()
-    {
-        addingCoins = true;
-        int addedCoins = 0;
-
-        if (displayedCoins > coins)
-        {
-            displayedCoins = coins;
+    private void Update() {
+        if (displayedCoins > coins) {
+            displayedCoins = 0;
             TotalCoins.text = displayedCoins.ToString("0000");
         }
+        
+        if (displayedCoins < coins) {
+            int coinsToDisplay = coins;
 
-        while (displayedCoins < coins)
-        {
-            displayedCoins++;
-            addedCoins++;
-            TotalCoins.text = displayedCoins.ToString("0000");
+            if (coins > maximum)
+                coinsToDisplay = maximum;
 
-            yield return new WaitForSeconds(0.001f);
+
+            else if (coinsToDisplay - displayedCoins > 10000 && displayedCoins >= 10000)
+                displayedCoins += 10000;
+
+            else if (coinsToDisplay - displayedCoins > 1000 && displayedCoins >= 1000)
+                displayedCoins += 1000;
+
+            else if (coinsToDisplay - displayedCoins > 100 && displayedCoins >= 100)
+                displayedCoins += 100;
+
+            else if (coinsToDisplay - displayedCoins > 10 && displayedCoins >= 10)
+                displayedCoins += 10;
+
+            else if (coinsToDisplay > displayedCoins)
+                displayedCoins ++;
+
+            if (displayedCoins < 10000)
+                TotalCoins.text = displayedCoins.ToString("0000");
+
+            else
+                TotalCoins.text = displayedCoins.ToString();
         }
-
-        addingCoins = false;
     }
-
 
     // Checks if an area is a Voltorb for the logging
     private string V(int num)
