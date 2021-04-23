@@ -1,1 +1,1 @@
-#[ModKit Wiki](../../wiki)
+This KTANE module was created by Espik (<https://github.com/Espik>). The algorithm to generate unique puzzles was written by Timwi (<https://github.com/Timwi>). It re-uses code from the library RT.Util.Core (<https://github.com/RT-Projects/RT.Util>) and PuzzleSolvers (<https://github.com/Timwi/PuzzleSolvers>) which were re-compiled together as PuzzleSolversNETFramework.dll in order to target .NET Framework 3.5 as required by KTANE’s outdated version of Unity.
