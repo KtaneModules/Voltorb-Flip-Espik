@@ -519,38 +519,30 @@ public class VoltorbFlip : MonoBehaviour
 #pragma warning disable 414
     private readonly string TwitchHelpMessage = @"Use !{0} flip A1 B2 C4 to flip those tiles. Use !{0} mark A1 B2 C4 to mark those tiles as having a Voltorb.";
 #pragma warning restore 414
-    private IEnumerator ProcessTwitchCommand(string Command)
+    IEnumerator Press(KMSelectable btn, float delay)
     {
-        Command = Command.Trim().ToUpperInvariant();
-        List<string> parameters = Command.Split(new char[] { ' ' }, StringSplitOptions.RemoveEmptyEntries).ToList();
-        if (Regex.IsMatch(Command, @"^(FLIP|MARK)\s*([A-E][1-5](\s*))+$", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase) == true)
+        btn.OnInteract();
+        yield return new WaitForSeconds(delay);
+    }
+    private IEnumerator ProcessTwitchCommand(string command)
+    {
+        command = command.Trim().ToUpperInvariant();
+        Match m = Regex.Match(command, @"^(?:(FLIP|MARK)\s+)?((?:[A-E][1-5](?:\s+|$))+)$");
+        if (m.Success)
         {
             yield return null;
-            bool toggling = (parameters.First() == "FLIP") ? marking : !marking;
-            if (toggling)
-            {
-                ToggleButton.OnInteract();
-                yield return new WaitForSeconds(0.15f);
-            }
-            parameters.Remove(parameters.First());
-            foreach (string button in parameters)
-            {
-                GridButtons[Array.IndexOf(gridPositions, button)].OnInteract();
-                yield return new WaitForSeconds(0.15f);
-            }
+            if ((m.Groups[1].Value == "FLIP" && marking) || (m.Groups[1].Value == "MARK" && !marking))
+                yield return Press(ToggleButton, 0.15f);
+            foreach (string coord in m.Groups[2].Value.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries))
+                yield return Press(GridButtons[(coord[0] - 'A') + 5 * (coord[1] - '1')], 0.15f);
         }
     }
-
     private IEnumerator TwitchHandleForcedSolve()
     {
-        if (marking) { ToggleButton.OnInteract(); yield return new WaitForSeconds(0.15f); }
+        if (marking)
+            yield return Press(ToggleButton, 0.15f);
         for (int i = 0; i < 25; i++)
-        {
             if (grid[i] > 1 && !posPressed[i])
-            {
-                GridButtons[i].OnInteract();
-                yield return new WaitForSeconds(0.15f);
-            }
-        }
+                yield return Press(GridButtons[i], 0.15f);
     }
 }
